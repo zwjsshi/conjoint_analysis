@@ -1,0 +1,196 @@
+---
+title: "conjoint_analysis"
+author: "Zewen Shi"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+This project aims to design a proper disposable dinnerware prototype for VerTerra. We are considering our product by look and feel, design, shape and price perspectives. Each of them has 3 possible choices, and the combination of them will be 81. By applying conjoint analysis, we could elicit stated preference from consumers easily.
+
+We launched a conjoint survey with Google Platform for 16 green consumers and exclude 4 outliers whom with either all 1 or all 10 for all attributes in their results. 
+
+We launched a conjoint survey for 16 green consumers and exclude 4 outliers whom with either all 1 or all 10 for all attributes in their results.
+
+# Data Analysis
+```{r}
+library(conjoint)
+library(fpc)
+#attributes (123) data
+tprof_c = read.csv("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\Response_15profiles_attr.csv")
+#levels data
+tlevn_c = read.csv("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\Response_levels.csv")
+#raing data
+tprefm_c = read.csv("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\Response_15profiles.csv")
+#remove outliers 
+tprefm_c = tprefm_c[-c(6,11,12,14),]
+#resert index of new tprefm_c
+rownames(tprefm_c) = NULL
+#create tpref table
+tpref_c = c()
+for (i in (1:nrow(tprefm_c))){
+  tpref_c = c(tpref_c, as.numeric(tprefm_c[c(i),]))
+}
+tpref_c = data.frame(tpref_c)
+```
+
+## Section 1: Individual and aggregative part-worth utilities
+### Individual part-worth utilities
+In terms of the individual part-worth utility, we choose our group member, Jasmine, who claims herself an environmentally friendly consumer, as our target. Apparently, Jasmine more likes natural looked and carton-box packaged products. She also prefers the wrapped-edges-only packaging method. Therefore, we can clearly see that Jasmine is an eco-friendly consumer. Regarding other features' preference, Jasmine is fancy at the square shape of the product, and she is susceptible to the price. As we can see, the utility of low price is around 0.76 while it of high price is -0.38, revealing the utility range of 1.14. 
+
+One interesting phenomenon illustrates that Jasmine's utility of carton-box and wrapped-edges packaging are significantly close. While in contrast, we are curious about whether all consumers who announce themselves as green consumers actually eco-friendly in terms of the packaging in later analysis.   
+
+```{r}
+#respondent 12
+caModel(y=tprefm_c[12,],x=tprof_c)
+```
+Table showing below lists all individual part-worth utility of respondents from the survey, and row 12 corresponds to Jasmine's. 
+```{r}
+#all respondents 
+partworthall= caPartUtilities(y=tpref_c,x=tprof_c,z=as.vector(tlevn_c[,c(2)]))
+partworthall
+```
+### Aggregative part-worth utilities
+As individual part-worth utility gives us individual preference to a hypothetical product. We next conduct the aggregative part-worth utilities to show the impact of each feature to overall preference of a hypothetical product.
+
+Table showing below lists all aggregative part-worth utility of 12 respondents from the survey. All insight analysis generates from this table.
+```{r}
+Conjoint(y=tpref_c,x=tprof_c,z=as.vector(tlevn_c[,c(2)]))
+```
+
+## Section 2: Determine the relative importance of attributes
+In our case, we have four factors: Look and Feel,Design,Packaging and Price. Fistly, we will look at the overall importance of each feature. 
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\factors.jpeg")
+```
+From this graph, we learn that the packaging and pricing show the highest average importance level comparing with desgin and look and feel. It means our consumers concern more about packaging and pricing for a product and less consider the look and feel and design factors when they make choices.
+Now, We are going into relative importance of attributes one by one.
+
+### Look and Feel
+In the graph below, we study three different attributes for look and feel factors.Sample A refers to Refined product, sample B refers to Natural product and sample C refers to weathered product.
+As shown in the graph, we can see that weathering is the most popular type of products, while either natrual or processing products is less concerned by consumers.
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\look_feel.jpeg")
+```
+
+### Design
+By looking at the graph below, we know that in terms of product design, people more like square shapes than round shapes. Hexagonal is the least favorite design. 
+Since our survey was published on Wechat and was taken by Chinese people only, we might consider this result as a cultural influence on Asian taste. For example, there is an old saying goes that you cannot get a perfect square or circle without the use of compasses and rulers. The meaning behind this saying is that people should always act by rules as well as standards. What is more, square refers to honesty, integrity, and sincerity in traditional Chinese culture, which has a profound impact on people's aesthetics. 
+The reason why respondents do not like hexagonal is that hexagonal plates may not comply with Chinese food culture. Since the most famous characteristic of Chinese table manners is that diners share food together, round and square-shaped plates are common appliances on the table while hexagonal plates are a little bit nonpractical. Thus, food culture affects people's aesthetics to some extent. 
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\design.jpeg")
+```
+
+### Packaging
+The result of this factor surprises us somehow, as we see the wrapped-edges-only style is the least preferred. Comparing with the environmentally friendly ranking scores consumers filled in our survey, we learn the majority of them regarding themselves as green consumers. However, they still prefer plastic packaging than wrapped-edges-only. Hence, we conclude that even people trying to be environment protector from deep heart, their product quality still comes first.
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\packaging.jpeg")
+```
+
+### Price
+The distribution of price followed common sense that people never prefer high price when low price exists.
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\pricing.jpeg")
+```
+
+## Section 3: Tradeoff among different possible features
+For each factor, three possible features are offered to consumers, and by checking the utilities for each of them, we draw the following table:
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\look_feel.png")
+```
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\design.png")
+```
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\packaging.png")
+```
+```{r echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("C:\\Users\\zewen\\Documents\\A_My File\\McGill\\Pricing Analytics\\conjoint\\part2\\price.png")
+```
+
+As we learn from the aggregative part-worth utilities graph, we know that the packaging and pricing showed the most significant level of importance. Hence we choose packaging and price to be our example for explain the tradeoffs among different features.
+
+1.If we keep all the rest constant, decrease price medium to low compared with change plastic wrapped to carton box. 
+The utility changes from price medium to low will be 0.0628 
+The utility changes from plastic wrapped to carton box will be 0.3824 
+So, change from plastic wrapped to carton box. 
+
+2.If we keet all the rest constant, decrease price medium to low compared with change wrapped edges only to carton box. 
+The utility changes from price medium to low will be 0.0628 
+The utility changes from wrapped edge only to carton box will be 0.4461 
+So, change from wrapped edge only to carton box. 
+
+3.If we keet all the rest constant, decrease price high to low compared with change wrapped edges only to carton box. 
+The utility changes from price high to low will be 0.3686 
+The utility changes from wrapped edge only to carton box will be 0.4461 
+So, change from wrapped edges only to carton box. 
+
+## Section 4: Willingness to pay for each feature
+As the tradeoff tables of each feature showed, we first calculated the price change impact per utility. 
+Mathematically, it can be formulated as:
+$$WTP/util=(p_h - p_l)/\delta util$$
+In our case, it is $5.826
+We then define the willingness to pay for each feature as the largest utility tradeoff utility within each feature times WTP/unit.
+For instance, WTP for look and feel will be:
+$$ \delta util(look) = util(sample B)-util(sampleC)=0.3282$$
+$$ WTP(look)=\delta util(look) *WTP/util =0.3282 *5.826 = 1.9121$$
+The same calculation is followed for packaging and desgin and with WTP of 2.4205 and 3.7053 separately.
+
+## Section 6: Final product prototype and price range 
+Since our survey only includes 12 people in total, the dataset itself has limitations. Without loss of generality, we decide to build the final product prototype while seeing our consumer as a homogeneous group; even we do consumer segments later to show that consumers are clustered into two groups. Another reason we do so is that the methodology of building the final prototype could be easily applied to build three final product prototypes for each group.
+
+### Prefered choice for all
+```{r}
+#preferred choice for all
+utility = as.data.frame(caTotalUtilities(y=tpref_c,x=tprof_c))
+utility
+avgpreferred = apply(utility, 2, mean)
+apply(as.data.frame(avgpreferred), 2, which.max)
+```
+```{r}
+preferred = apply(utility, 1, which.max)
+table(preferred) 
+```
+As the tables show above, the average preferred profile is profile 15, which has the following attributes: weathered round product with carton-box packaging for 7 dollars. The top 3 preferred profiles are 2, weathered square product packed by carton-box for 8 dollars; 8, a refined square product with plastic packaging for 7 dollars; and 11, natural squared carton-box product for 6 dollars.
+
+Therefore, based on the top 3 preferred products and top utilities of each feature in the aggregative part-worth utility table, we choose our general prototype, which suits for overall consumers' utility. The prototype has the following attributes: weathered look, square shape, as well as carton-box package.
+
+To find a proper price range, we first assume the lowest price of $6 in our profile would be sufficient for product costing. Then we compare the prototype profile with the top 3 preferred profiles, calculated the price changes when the preferred profile attributes change to the prototype ones by WTP to get a price range for each profile. Finally, we take the intersection of those three price ranges. As a result, the price range for our general prototype is [6,7.91]
+
+### Part-worth utilities by segments
+```{r}
+set.seed(12)
+segments = caSegmentation(tprefm_c,tprof_c,2)
+library(fpc)
+plotcluster(segments$util,segments$sclu)
+```
+From this part, we can see that our consumers are not a homogeneous group. They are split into two groups. It means we should consider focusing on different consumer group needs. If we choose one group's preference, we will automatically lose a big market in the other group.
+
+### Target prototype recommendation
+```{r}
+partseg = as.data.frame(cbind(partworthall,segments$sclu))
+colnames(partseg)[14] = c("segment")
+library(psych)
+segtable = psych::describeBy(partseg, partseg$segment, mat=TRUE)
+print(segtable[1:26,5:6])
+```
+If our dataset contains more data points, we could further analyze building prototypes for the majority group by applying the same methodology we used for a homogeneous group.
+
+If we choose segment one consumer as the target, by applying the methodology we did above, our final prototype will be refined square product packed by carton box with pricing range [6,7.91]. 
+
+If we choose segment two consumer as the target, our final prototype will be weathered square product with carton box package. And the price range will be [6,6.81]
+
+The significant difference between segments one and two is price sensitivity. The price utility range for segment one is 0.19, while segment two is around 0.61. Therefore, consumers from segment 1 are less price-sensitive than from segment two, meaning customers from segment one are less concerning price than from segment two.  
+
+
+# Marketing insights for VerTerra
+The previous analysis shows that there IS a market for VerTerra, but how they should enter this new market? We propose the following marketing recommendations.
+
+## 1.Market position
+The first question they need to re-consider is the market position of VerTerra: what is their competitive advantage? In terms of the competitive rivalry, VerTerra needs to consider 2 different markets – traditional kitchenware and disposable kitchenware – and highlight different aspects when advertising. For example, comparing to other disposable dinnerware, VerTerra is more environmental-friendly, more conversation worthy, more durable, and maybe reusable. As for traditional market, VerTerra should emphasize that they are cleaning-free and cheaper. Placing the product in the correct market can help VerTerra target their consumers and design marketing campaign.
+
+## 2.Location impact 
+As indicated by our survey, there are surprisingly huge regional impact on preferences, especially with regard to the design/look of the product. For example, our respondents, all Chinese, have extremely strong preferences towards squared plates. This may due to cultural influence and dietary habits. If VerTerra launches the product in both North America and Asia, they need to take this into consideration when placing and promoting their products.
+
+## 3.Product innovation
+Even an environmental-friendly disposable dinnerware sounds exciting, there is a root conflict within the idea itself: a disposable product is NOT environmental-friendly AT ALL! To resolve this potential controversy, we suggest VerTerra continue to research and develop the non-disposable environmental-friendly kitchenware. This can be a better selling point for the company. 
