@@ -1,0 +1,648 @@
+---
+output: pdf_document
+---
+```{r , echo=TRUE, message=FALSE, warning=FALSE, tidy=TRUE}
+```
+
+
+# Program Setup and Data Preparation
+```{r, message = FALSE}
+library(Formula)
+library(zoo)
+library(lmtest)
+library(mlogit)
+library(dplyr)
+library(gmnl)
+
+
+#change from wide format to long format
+data=mlogit.data(fulldata,shape='wide',choice='choice',varying=3:8,sep='')
+```
+
+# Part I  Revealed Preference
+## Section 1: Comparing Conditional Logit and Multinomial Models
+### Sub-Section 1: Conditional Logit Choice Model
+#### Introduction
+Let us first define four different conditional logit choice models, which do not capture individual-level information. For Model 1 (m1 in R) and Model 2 (m1_null in R), we treat both price and EF as generic coefficients, and the only difference is that m1 takes into account the intercept and includes individual or situation-level variables, where m1_null does not. We also like to evaluate the marginal effect of price on consumer’s utility across different brands. Hence, we developed two additional model Model 3 (m2 in R) and Model 4 (m2_null in R). For Model 3 and Model 4, we treat EF as a generic coefficient and price as the alternative-specific coefficient. Similarly, the difference between m2 and m2_null is that m2 includes individual or situation-level variables, but m2_null does not. Lastly, we are going to define another model, Model 5 (m3 in R), where we treat both EF and price as alternative-specific coefficients with an intercept.
+
+#### Model Formulations and R-Codes
+
+Model 1 is given by:
+
+$$U_{ij}-U_{ik} = (\alpha_{j} - \alpha_{k}) + \beta(price_{ij} - rice_{ij}) + \gamma(EF_{ij} - EF_{ij}) $$
+```{r,message = FALSE}
+m1=mlogit(choice~Price+EF|1|0,data,reflevel = '1')
+```
+Model 2 is given by:
+$$U_{ij}-U_{ik} = \beta(price_{ij} - rice_{ij}) + \gamma(EF_{ij} - EF_{ij}) $$
+```{r,message = FALSE}
+m1_null= mlogit(choice~Price+EF|0|0,data,reflevel = '1')
+```
+Model 3 is given by:
+$$U_{ij}-U_{ik} = (\alpha_{j} - \alpha_{k}) + \delta(EF_{ij} + EF_{ij}) + (\beta_{j} Price_{ij} - \beta_{k} Price_{ik}) $$
+```{r,message = FALSE}
+m2 = mlogit(choice~EF|1|Price,data,reflevel = '1')
+```
+Model 4 is given by:
+$$U_{ij}-U_{ik} =  \delta(EF_{ij} - EF_{ij}) + (\beta_{j} Price_{ij} - \beta_{k} Price_{ik}) $$
+```{r,message = FALSE}
+m2_null = mlogit(choice~EF|0|Price,data,reflevel = '1')
+```
+Model 5 is given by:
+$$U_{ij}-U_{ik} = (\alpha_{j} - \alpha_{k}) + (\delta_{j}EF_{ij} - \delta_{k}EF_{ij}) +(\beta_{j} Price_{ij} - \beta_{k} Price_{ik}) $$
+```{r,message = FALSE}
+m3 = mlogit(choice~ 0|1|EF+ Price,data,reflevel = '1')
+```
+#### Model Results 1: Comparing Model 1 and Model 2
+For both Model 1 and Model 2, price is a statistically significant negative coefficient, which implies that higher the price less likely, a consumer will choose the brand. EF index is a statistically insignificant positive coefficient, which implies that if a product is environmentally-friendly, the consumer is likely to choose that brand. However, since the results are likely to be produced by random chance, we cannot draw such a conclusion with confidence. For Model 2, the intercept 3 (brand 3) is significant, which implies brand 3’s reputation or advertisement could be a contributing factor in consumers' choice likelihood. 
+```{r}
+summary(m1)
+summary(m1_null)
+```
+When comparing the model performance in terms of the relative amount of information lost by a given model, the Akaike Information Criterion (AIC) shows that Model 1 performs slightly better than Model 2. However, results are trivial, because the improvement in the log-likelihood estimation is not significant.
+```{r}
+lrtest(m1, m1_null)
+AIC(m1)
+AIC(m1_null)
+```
+#### Model Results 2: Comparing Model 3 and Model 4
+Similarly, when comparing Model 3 and Molde 4, only the price level are statistically significant negative coefficients.
+```{r}
+summary(m2)
+summary(m2_null)
+```
+When comparing the model performance in terms of the relative amount of information lost by a given model, the Akaike Information Criterion (AIC) shows that Model 4 (without intercept) performs actually better than Model 3. However, results are trivial for the same reason, because the improvement in the log-likelihood estimation is not significant.
+```{r}
+lrtest(m2, m2_null)
+AIC(m2)
+AIC(m2_null)
+```
+#### Model Results 3: Comparing Model 1 and Model 4
+Lastly, we take two winners in terms of the lowest AIC from two different types of models and comparing them in terms of the log-likelihood estimation. 
+```{r}
+lrtest(m1,m2_null)
+AIC(m1)
+AIC(m2_null)
+```
+The results show that Model 4 performance improvement is statistically significant than Model 1. The fact implies that it is a better practice from the modeling perspective to treat price as alternative-specific coefficient instead of generic coefficient Hence, Model 4 is the winner so far. 
+
+#### Model Results 4: Comparing Model 4 and Model 5
+We also want to compare the Model 3 against Model 5 to find if there is any statistically significant increase in performance if we treat both price and EF as alternative-specific. However, the increase in model performance is not statistically significant. Thus treating EF as alternative-specific coefficient will not improve our model performance.
+```{r}
+lrtest(m2,m3)
+AIC(m2)
+AIC(m3)
+```
+### Sub-Section 2: Multinomial Choice Model
+#### Introduction:
+In the previous part of the report, we discussed four models without specifying individual-level information. Now we would like to develop three additional models to capture this level of information explicitly. In all three models, individual-level variables are associated with alternative-specific coefficients; otherwise, the terms will cancel out in the utility difference formula. In Model 6 (modelM1 in R), we treat EF and price as a generic coefficient. In Molde 7 (modelM2 in R), we treat price as an alternative-specific coefficient to capture the marginal effect of price on consumer’s utility across different brands. Lastly, in Model 8 (modelM3 in R), we treat both price and EF as alternative-specific coefficients.  
+
+#### Model Formulations and R-Codes
+
+Model 6 is given by:
+$$U_{ij}-U_{ik} = \beta(X_{ij}-X_{jk}) + (\alpha_j - \alpha_k) + (\delta_j - \delta_k)Y_i$$
+where,
+$$Y_i = [1, edu, inc,gp, ga]$$
+```{r,message = FALSE}
+modelM1=mlogit(choice~Price+EF|green_post+follow_green_account+
+                 education+income|0,data,reflevel = '1')
+```
+Model 7 is given by:
+$$U_{ij}-U_{ik} = (\alpha_{j} - \alpha_{k}) + \delta(EF_{ij} - EF_{ij}) + (\beta_{j} Price_{ij} - \beta_{k} Price_{ik}) + (\delta_j - \delta_k)Y_i$$
+```{r,message = FALSE}
+modelM2=mlogit(choice~EF|green_post+follow_green_account+
+                 education+income|Price,data,reflevel = '1')
+```
+Model 8 is given by:
+$$U_{ij}-U_{ik} = (\alpha_{j} - \alpha_{k}) + (\delta_{j}EF_{ij} - \delta_{k}EF_{ij}) + (\beta_{j} Price_{ij} - \beta_{k} Price_{ik}) + (\gamma_j - \gamma_k)Y_i$$
+```{r,message = FALSE}
+modelM3=mlogit(choice~0|green_post+follow_green_account+
+                 education+income|Price+EF,data,reflevel = '1')
+```
+#### Model Results 5: Cross Comparison Between Model 6 - 9
+Based on the following results, our first observation is that none of the green post (i.e., social gesture) nor follow green account (i.e., media consumption) is statistically significant. The fact implies that consumer’s social media behavior, in this case, is not indicative of their buying behaviors. Unsurprisingly, price is again a statistically significant coefficient across all models, and EF is not a statistically significant coefficient except for the Model 8 brand 2 EF index. What is interesting is that education and income factor are statically significant across models. 
+```{r}
+summary(modelM1)
+summary(modelM2)
+summary(modelM3)
+```
+#### Model Results 6: Cross-Model Performance Between Model 6 - Model 7
+```{r}
+lrtest(modelM1,modelM2)
+lrtest(modelM3,modelM2)
+lrtest(modelM1,modelM3)
+
+AIC(modelM1)
+AIC(modelM2)
+AIC(modelM3)
+```
+Based on the results above, when comparing performance across all three models, the improvement in maximum log-likelihood. estimation is not significant.
+    
+#### Model Results 7: Model Comparison Between Model 4 and Model 7
+In a nutshell, we developed in a total of 7 different models, which can be divided into two different categories. The first five models (Model1 - 5) did not contain individual-level information, and the last three models (Model 6 - 8) did. Now we want to find out which type of model is better. Hence we pick the best performing one in each of the categories, Model 4, to compare it against Model 7.
+```{r}
+lrtest(m2_null, modelM2)
+AIC(m2_null)
+AIC(modelM2)
+```
+The results show that not only the improvement is statistically significant, but also the decrease in information lost is sharp. Hence, we conclude that the model with individual-level information is better than the one without.
+
+#### Model Inference: Marginal Effects on Choice Probabilities
+Based on previous findings, because income and education are significant coefficients, we would like to find the marginal effects on choice probabilities. 
+```{r}
+effects(modelM1,covariate = 'income',type = 'ra')
+effects(modelM1,covariate = 'education',type = 'ra')
+```
+Sample Interpretations:
+
++ If a consumer's income increases by 1 level, the choice probability of brand 2 increases by 12.1%. 
+
++ If a consumer's education increases by 1 level, the choice probability of brand 2 increases by 10%.
+
++ If a consumer's education increases by 1 level, an average consumer's utility of brand 2 relative to brand 1 increases by 0.2537.
+
+### Managerial Conclusion
+Based on all seven models, our data analytics team, would not recommend VerTerra invest in new biodegradable disposable dinnerware. Because based on the models developed so far, only price, education, income, and a certain brand reputation will influence consumer’s purchasing behavior. However, our major concern the EF index will not influence consumer’s purchasing behavior. But given other models are available to our disposal, our team would continue our discovery, where we may reach a different conclusion.
+
+## Section 2: Latent Class Models
+### Model Formulations
+#### Introduction
+In this section, we will develop latent class models, where consumers will be segmented into two discrete groups, namely, eco-conscious consumers and none-eco-conscious. Because we believe that the utility of EF and price will differ to a different group of consumers. This will allow us to segment consumers into different classes and offer targeted products to respective groups. We first run two models, Model 1 ( lc.Q2 in R) and Model 2 (lc.iQ2). For both Model 1 and Model 2, we treat price and EF as class-specific coefficients, and neither Model 1 and 2 will include any intercepts nor alternative-specific coefficients. However, it is not always the case that individual-level information is readily available to marketers. Fortunately, one may still estimate individual-specific coefficients without individual-level information. The intuition is that marketers may attribute preference heterogeneity to some unobserved reasons not explicitly presented in the dataset but observed by decision-makers. Hence, we first run two models to simulate such hypothetical scenarios. Model 1 will not include any individual-level information, but Model 2 will. 
+
+One the other hand, one may also argue that the market could be separated into more than two segments, and we may see an increase in model performance. To test the validity of this hypothesis, we will build two more models, Model 3 (lc.Q3 in R) and Model 4 ( lc.iQ3 in R). Model 3 will be identical to that Model 1, with the excitation of having three segments instead of 2. The same logic applies to Model 4 as well. 
+    
+#### Model Formulations and R-Codes:
+Formulation for Model 1 and Model 3:	
+Since both Model 1 and Model 3 are estimated without explicitly using individual-level information, the probability of any individual is assigned into any one segment is given by: 
+$$=S_{iq}=\frac{exp(\gamma_q)}{\sum_{q=1}^Q exp(\gamma_q)},\ q=1,2,...Q,$$
+where gamma is normalized to 0
+$$\gamma_1=0$$
+```{r, message = FALSE}
+#Model 1
+set.seed(123)
+lc.Q2=gmnl(choice ~ Price +EF|0|0|0|1, data = data, model = 'lc', Q=2)
+```
+
+```{r, message = FALSE}
+#Model 3
+lc.Q3=gmnl(choice ~ Price+EF|0|0|0|1, data = data,model = "lc",Q=3)
+```
+
+Formulation for Model 2 and Model 4:	
+On the other hand, since both Model 2 and Model 4 are estimated with individual level information, the probability of any individual is assigned into any one segment is given by:
+$$S_{iq}=\frac{exp(Y_i\gamma_q)}{\sum_{q=1}^Q exp(Y_i\gamma_q)},\ q=1,2,...Q,$$
+where gamma is normalized to 0
+$$\gamma_1=0$$
+```{r, message = FALSE}
+#Model 2
+lc.iQ2=gmnl(choice~Price+EF|0|0|0|education+income+green_post+
+              follow_green_account,data=data, model = 'lc',Q=2) 
+```
+
+```{r, message = FALSE}
+#Model 4
+lc.iQ3=gmnl(choice~Price+EF|0|0|0|education+income+green_post+
+              follow_green_account,data=data, model = 'lc',Q=3) 
+```
+
+### Model Results
+
+#### Model Results 1: Comparing between estimation with or without individual-level information
+
+We first like to compare the performance of the models with individual-level information, and ones don’t. Hence, we decided to run two parallel comparisons. First, let us compare the model performance between Model 1 and Model 2. 
+```{r}
+lrtest(lc.Q2,lc.iQ2)
+AIC(lc.Q2)
+AIC(lc.iQ2)
+```
+Similarly, We would like to compare the performance between Model 3 and Model 4.
+```{r}
+lrtest(lc.Q3,lc.iQ3)
+AIC(lc.Q3)
+AIC(lc.iQ3)
+```
+The above results show the increase in maximum likelihood estimation is significant when the individual-level information is included, and the reduction is information lost is higher compared to the ones did not include. 
+
+#### Model Results 2: Comparing between 2 segments and 3 segments
+
+We first run a likelihood ratio test and AIC test on Model 1 and Model 3. The likelihood test shows that the increase in maximum likelihood estimation is not significant. The AIC test shows when there is one more segment (Model 3), the information lost is surprisingly higher. 
+```{r} 
+lrtest(lc.Q2,lc.Q3)
+AIC(lc.Q2)
+AIC(lc.Q3)
+```
+We then run a likelihood ratio test and AIC test on Model 2 and Model 4. To reiterate, both Model2 and Model 4 contains individual-level information. The results show when individual-level information is estimated, the increase in maximum likelihood estimation for three segments model is significant, and the reduction is information lost is higher compared to the models did not include individual-level information. 
+```{r}
+lrtest(lc.iQ2,lc.iQ3)
+AIC(lc.iQ2)
+AIC(lc.iQ3)
+summary(lc.iQ2)
+summary(lc.iQ3)
+```
+However, when analyzing the estimation results, we can see that when assuming 3 classes, both class coefficients are not significant, suggesting us to stick to 2 classes.
+
+#### Model Results 3: Pick the best Model
+Again, we run AIC on two models and pick the lower one.
+```{r}
+AIC(lc.Q2)
+AIC(lc.iQ2)
+```
+Based on the above results, we conclude that the best model to represent the Latent Class Model is Model 2 (2 segments with individual-level information). 
+
+### Managerial Insights
+
+#### Segmentation and Targeting
+
+Because we separated customers into two groups (eco-conscious and none-eco-conscious), for marketers, we could then find those eco-conscious customers with more than 80% probability of belonging to the eco-conscious segment as our target consumers.
+```{r}
+S_iq=lc.iQ2$Qir #estimated indi prob of class assignment
+colnames(S_iq)=c('q=1 (Non-EF)','q=2 (EF)')
+round(head(S_iq),4)
+data_Siq=cbind(fulldata,S_iq)
+data_Siq=data_Siq[order(data_Siq[,14],decreasing = TRUE),]
+EFtarget_100=data_Siq[1:100,] #select top 100 potential customers
+EFtarget_0.8=subset(data_Siq,data_Siq$`q=2 (EF)`>0.8)
+head(EFtarget_100)
+head(EFtarget_0.8)
+```
+#### Class-average preference and WTP for EF
+We could also calculate the willingness to pay for a product with EF features. This will allow marketers to know the premium to charge for EF features. 
+
+Marketers may ask the following questions.
+
+\textbf{Suppose EF change from 0 to 1, how much price should brand j change if to keep same level of utility}
+```{r}
+-coef(lc.iQ2)['class.2.EF']/coef(lc.iQ2)['class.2.Price']
+```
+Based on the above results, class 2 consumers average WTP (willingness to pay) for EF is $3.67
+
+#### Individual preference and WTP for EF
+Similarly, we could also find the individual’s willingness to pay for EF features. This will allow markets to send out targeted offers and products to individual customers. 
+```{r}
+EF_i=effect.gmnl(lc.iQ2, par = "EF", effect = "ce")$mean
+summary(EF_i)
+WTP_EF_i = -effect.gmnl(lc.iQ2, par = "EF", effect = "wtp", wrt = "Price")$mean
+summary(WTP_EF_i)
+```
+Based on the results, the willingness to pay for EF features is less than 3.67 as no consumer 100% belongs to class 2.The mean willingness to pay is 1.4127. 
+
+#### Class-average preference and WTP for EF with three segements
+```{r, message=FALSE}
+class2 = -coef(lc.iQ2)['class.2.EF']/coef(lc.iQ2)['class.2.Price']
+class1 = -coef(lc.iQ2)['class.1.EF']/coef(lc.iQ2)['class.1.Price']
+WTP_list = c(class2,class1)
+print(WTP_list)
+```
+We could also find the class-average willingness to pay for EF for both segments.
+
+#### Visualization 
+
+We can first visualize the distribution of EF. We focus on the consumers with EF values 
+```{r}
+plot(lc.iQ2, par = "EF", effect = "ce", type = "density", col = "blue")
+```
+We can then visualize WTP with respect to "Price", helps manager to understand how much to set the EF premium
+```{r}
+plot(lc.iQ2, par = "EF", effect = "wtp", wrt = "Price", type = "density", col = "blue") 
+```
+
+
+## Section 3: Comparing Multinomial Choice Models and Latent Class Models
+
+### Sub-section 1: Individual-level Information Capturing
+
+In the Multinomial Choice Models, the individual-level information variables are associated with alternative-specific coefficients. This implies individual-level information is used as parameters that will maximize the predicted probabilities observed from the data. In layman's term, individual level information is used to estimate the probability just like the price and EF index. When observations are independent, the resulting optimization problems is equivalent to maximize the sum of the log-likelihoods of the observations. The individual-specific variable is just one of the three variables estimated in the Multinomial Choice Models. 
+
+On the other hand, for the Latent Class Models, individual-level information is used to estimate the probability of each individual belongs to a segment S. For example,  if education, one of the individual-level information estimated in the model is significant and positive, then one level increase in education increases the log odds of an individual belonging to class 2 with respect to class 1 by $gamma_{edu}$ unit. Similarly, if there are three segments instead of two, then given the fact that education factor is significant and positive, then one level increase in education increases the log odds of an individual belonging to class 2 (or class 3) with respect to class 1 by $gamma_{edu}$ unit.
+
+### Sub-section 2: Which One is Better?
+
+To determine which one is better, let us run a likelihood estimation and AIC test on information lost. To make sure the comparison is fair, we will pick the best performing model from every type of Model. Based on the results obtained from the previous sections, we pick modelM2 to represent the Multinomial Choice Model and lc.iQ2 (with two segments and individual-level information estimation) to represent the Latent Class Model.
+```{r}
+lrtest (modelM2, lc.iQ2)
+AIC(modelM2)
+AIC(lc.iQ2)
+```
+Both likelihood-estimation and AIC information lost test both concurrent the finding that the lc.iQ2 Latent Class Model is statistically significant better than the modelM2 Multinomial Choice Modele. 
+
+### Sub-section 3: Estimation Results Comparison
+```{r}
+WTP_Multinomial = -coef(modelM1)['EF']/coef(modelM1)['Price']
+print(WTP_Multinomial)
+```
+The above results show the willingness to pay estimated with different models. For Multinomial Choice Models, the willingness to pay is uniform across all consumers. However, the Latent Class Model willingness to pay varies across a different group of consumers. For the eco-conscious consumers (i.e., class 2), the willingness to pay is the highest. For non eco-conscious consumers (i.e., class 1), the willingness to pay is actually negative, which means that marketers need to offer incentives for them to buy environmentally friendly products. Sperating consumers into different clusters seems to be more reasonble becasue people do have different attitude toward environmentally friendly products.
+
+### Sub-section 4: Managerial Insights
+
+To summarize, the Latern Class Model performs better because of the underlying hypothesis/methods of the Latern Class Model simulates reality more closely. Epistemically, it is not challenging to find people surrounding us who have different attitudes toward environmentally friendly products, environmental protection, or waste reduction. For eco-conscious consumers, the willingness to pay for environmentally friendly products should be significantly higher than those who are not eco-conscious. For none-eco-conscious consumers, the most important factor is the price given a homogeneous product such as dish-wash or disposable dinnerware, instead of none-value-adding EF factors. This phenomena tells marketers that it is more efficient in terms of return on investments, to offer targeted products, coupons, and advertisements to the targeted audience (i.e., offering some degree of personalization), instead of offering products to a wide-ranging market without knowing any individual-level information. 
+
+## Section 4: Random Parameter Model
+
+### Model Formulation
+
+#### Introduction
+In section 2, we have discussed two scenarios where we segment consumers into two or three discrete groups. Alternatively, we could instead consider the number of segments to follow a continuous distribution, such as a normal distribution. Therefore we decided to develop a Random Parameters Model to consider a class of normal distribution, with the means $\beta$ and standard deviation $\sigma$.Similar to the previous Latent Class Model, a Random Parameters Model can be developed with and without individual-level information.
+
+#### Model Formulation
+Formulation of Model 1: 
+Model 1 (rp1 in R) is estimated without individual-level information.
+Mathematically, Model 1 can be formulated as:
+$$\beta_i=\beta + \sigma\cdot z_i,\ z_i\sim N(0,1)$$
+
+```{r, message = FALSE}
+
+set.seed(123)
+rp1 <- gmnl(choice ~ Price+EF | 0 | 0 | 0, 
+           data = data,
+           model = "mixl",
+           ranp = c(Price = "n", EF = "n"))
+```
+Formulation of Model 2: 
+Model 2 (rp.i1 in R) is estimated with individual-level information.
+Mathematically, Model 2 can be formulated as:
+$$\beta_i=\beta + \gamma\cdot Y_i +\sigma\cdot z_i,\ z_i\sim N(0,1)$$
+
+```{r, message = FALSE}
+rp.i1=gmnl(choice~Price+EF|0|0|income+education+green_post+follow_green_account, data = data,
+           model = "mixl",ranp = c(Price = "n", EF = "n"), 
+           mvar = list(EF = c("income", "education", "green_post", "follow_green_account"), 
+                       Price = c("income","education","green_post", "follow_green_account"))) 
+```
+### Model Results
+
+#### Model Results 1: Comparing between estimation with or without individual-level information
+Similar to what we have done in the Latent Class Model, we would like to first compare the performance across all models with individual-level information, and the ones don’t. Hence, we decided to run two parallel comparisons. First, let us compare the model performance between Model 1 and Model 2.   
+```{r}
+lrtest(rp1,rp.i1)
+AIC(rp1)
+AIC(rp.i1)
+```
+The above results show the increase in maximum likelihood estimation is significant when the individual-level information is included, and the reduction is information lost is higher compared to the previous results. 
+
+#### Model Results 2: Fine-tune Model 2
+Next, we would like to fine-tune Model 2. But first let us take a look at Model 2
+```{r}
+summary(rp.i1)
+```
+In this model,$\beta_{Price}$, $\beta_{EF}$, and $\Sigma_{EF}$ are significant. Price has a significant impact on consumer utility, as well as EF. However, consumers also have heterogeneous preferences toward the EF index. The results also suggest EF('green_post') and Price('income','education','follow_green_account') are insignificant, so we decided to drop them. Hence we build Model 3 (rp.i2 in R), based on what we have learned. 
+```{r}
+rp.i2=gmnl(choice ~ Price+EF|0|0|income+education+green_post+follow_green_account, data = data,
+           model = "mixl",ranp = c(Price = "n", EF = "n"), 
+           mvar = list(EF = c("income", "education", "follow_green_account"), 
+                       Price = c("green_post") )) 
+```
+Next, we would like to run a compare between Model 2 and Model 3. 
+```{r}
+lrtest(rp.i1,rp.i2)
+AIC(rp.i1)
+AIC(rp.i2)
+```
+Although Model 3 performs better than Model 2 in terms of information reduction; however, in terms of maximum likelihood estimation, the model performance increase is not significant. Though we cannot conclude Model 3 is better than Model 2 using tests, we subjectively agree that Model 3 outperforms Model 2 due to its parsimony.
+
+#### Model Results 3: Latent Class Models vs Random Parameter Models
+Now we have fully developed all the models available for marketers to make a final decision. Now we are interested in comparing the Latent Class Models against the Random Parameter Models. We achieve so by picking the best performing model from each group of models. We choose the lc.iQ2 Model with two segments and individual-level information estimation to represent the Latent Class Model, and we pick the rp.i2 Model with individual-level information estimation to represent fine-tuned Random Parameter Model.
+```{r}
+lrtest(rp.i2,lc.iQ2)
+AIC(rp.i2)
+AIC(lc.iQ2)
+```
+Both likelihood-estimation and AIC information lost test both concurrent the finding that the lc.iQ2 Model is statistically significant better than the rp.i2 Model. 
+
+### Managerial Insights
+
+#### Individual WTP of EF
+To gain some insights, we could first find an individual's willingness to pay for EF features. This will allow markets to send out targeted offers and products to individual customers. 
+```{r}
+WTP_EF_i =-effect.gmnl(rp.i2, par = "EF", effect = "wtp", wrt = "Price")$mean
+summary(WTP_EF_i)
+```
+The mean willingness to pay is 0.90, which is lower than what we have estimated from the Latent Class Model (1.41). 
+
+#### Consumer Targeting
+
+Because we separated customers into continuous groups, marketers could find top n (in our case, top 100) eco-conscious customers as their targeted customers to provide personalized ads, coupons, or other offers.
+```{r}
+data_EF=cbind(fulldata,EF_i,WTP_EF_i)
+data_EF=data_EF[order(data_EF[,14], decreasing = TRUE),] #rank consumers' WTP
+EFperson_100=data_EF[1:100,] #pick the top 100
+```
+
+#### Visualization
+
+We can first plot the individual preference.
+```{r}
+EF_i=effect.gmnl(rp.i2, par = "EF", effect = "ce")$mean
+summary(EF_i)
+plot(rp.i2, par = "EF",effect="ce",type ="density",col = "blue")
+```
+We can also visualize the willingness to pay where manager may speficy the price variable with "wrt" and change "effect" to be "wtp"
+```{r}
+plot(rp.i2, par = "EF",effect ="wtp",wrt="Price", type="density", col ="blue") 
+```
+
+## Section 5: Robustness Check: Comparing Top Consumers
+In the final section of revealed preference, we are going to check the robustness of the latent class and random parameter models. We will do so by comparing the top 100 list selected by the latent class approach and the random parameter approach.
+```{r}
+overlap=Reduce(intersect, list(EFperson_100$id,EFtarget_100$id))
+print(overlap)
+length(overlap) 
+```
+The results show that there are 82 out of 100 consumers were selected by both models. This means that both models have a strong performance and are robust in classifying consumers' EF preference. 
+
+## Section 6: Final Managerial Summary
+Based on the previous findings, we conclude that VerTerra SHOULD launch the new product. 
+
+To achieve the best return on investment in terms of the marketing values, VerTerra should target consumers who are eco-conscious segments and offering targeted product offers such as coupons and rebates.
+
+Based on our findings: VerTerra should charge consumers 3.35 more than the non-enviormental friendly products. For those consumers who are in the first segment, we should offer them no more than 2.71 dollars worth of coupons or rebates for each purchase. 
+
+# Program Setup and Data Preparation
+```{r}
+library(conjoint)
+library(fpc)
+
+#attributes (123) data
+tprof_c = Response_15profiles_attr
+#levels data
+tlevn_c = Response_levels
+#raing data
+tprefm_c = Response_15profiles
+#remove outliers 
+tprefm_c = tprefm_c[-c(6,11,12,14),]
+#resert index of new tprefm_c
+rownames(tprefm_c) = NULL
+#create tpref table
+tpref_c = c()
+for (i in (1:nrow(tprefm_c))){
+  tpref_c = c(tpref_c, as.numeric(tprefm_c[c(i),]))
+}
+tpref_c = data.frame(tpref_c)
+```
+
+# Part II  Stated Preference
+Now, with the known focus consumer group, our next step is to design a proper product prototype for them. We are considering our product by look and feel, design, shape and price perspectives. Each of them has 3 possible choices, and the combination of them will be 81. By applying conjoint analysis, we could elicit stated preference from consumers easily.
+
+We launched a conjoint survey with Google Platform for 16 green consumers and exclude 4 outliers whom with either all 1 or all 10 for all attributes in their results. 
+
+We launched a conjoint survey for 16 green consumers and exclude 4 outliers whom with either all 1 or all 10 for all attributes in their results. 
+## Section 1: Individual and aggregative part-worth utilities
+### Individual part-worth utilities
+In terms of the individual part-worth utility, we choose our group member, Jasmine, who claims herself an environmentally friendly consumer, as our target. Apparently, Jasmine more likes natural looked and carton-box packaged products. She also prefers the wrapped-edges-only packaging method. Therefore, we can clearly see that Jasmine is an eco-friendly consumer. Regarding other features' preference, Jasmine is fancy at the square shape of the product, and she is susceptible to the price. As we can see, the utility of low price is around 0.76 while it of high price is -0.38, revealing the utility range of 1.14. 
+
+One interesting phenomenon illustrates that Jasmine's utility of carton-box and wrapped-edges packaging are significantly close. While in contrast, we are curious about whether all consumers who announce themselves as green consumers actually eco-friendly in terms of the packaging in later analysis.   
+
+```{r}
+#respondent 12
+caModel(y=tprefm_c[12,],x=tprof_c)
+```
+Table showing below lists all individual part-worth utility of respondents from the survey, and row 12 corresponds to Jasmine's. 
+```{r}
+#all respondents 
+partworthall= caPartUtilities(y=tpref_c,x=tprof_c,z=as.vector(tlevn_c[,c(2)]))
+partworthall
+```
+### Aggregative part-worth utilities
+As individual part-worth utility gives us individual preference to a hypothetical product. We next conduct the aggregative part-worth utilities to show the impact of each feature to overall preference of a hypothetical product.
+
+Table showing below lists all aggregative part-worth utility of 12 respondents from the survey. All insight analysis generates from this table.
+```{r}
+Conjoint(y=tpref_c,x=tprof_c,z=as.vector(tlevn_c[,c(2)]))
+```
+
+##Section 2: Determine the relative importance of attributes:
+In our case, we have four factors: Look and Feel,Design,Packaging and Price. Fistly, we will look at the overall importance of each feature. 
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/factors.jpeg")
+```
+From this graph, we learn that the packaging and pricing show the highest average importance level comparing with desgin and look and feel. It means our consumers concern more about packaging and pricing for a product and less consider the look and feel and design factors when they make choices.
+Now, We are going into relative importance of attributes one by one.
+
+### Look and Feel
+In the graph below, we study three different attributes for look and feel factors.Sample A refers to Refined product, sample B refers to Natural product and sample C refers to weathered product.
+As shown in the graph, we can see that weathering is the most popular type of products, while either natrual or processing products is less concerned by consumers.
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/look_feel.jpeg")
+```
+
+### Design
+By looking at the graph below, we know that in terms of product design, people more like square shapes than round shapes. Hexagonal is the least favorite design. 
+Since our survey was published on Wechat and was taken by Chinese people only, we might consider this result as a cultural influence on Asian taste. For example, there is an old saying goes that you cannot get a perfect square or circle without the use of compasses and rulers. The meaning behind this saying is that people should always act by rules as well as standards. What is more, square refers to honesty, integrity, and sincerity in traditional Chinese culture, which has a profound impact on people's aesthetics. 
+The reason why respondents do not like hexagonal is that hexagonal plates may not comply with Chinese food culture. Since the most famous characteristic of Chinese table manners is that diners share food together, round and square-shaped plates are common appliances on the table while hexagonal plates are a little bit nonpractical. Thus, food culture affects people's aesthetics to some extent. 
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/design.jpeg")
+```
+
+### Packaging
+The result of this factor surprises us somehow, as we see the wrapped-edges-only style is the least preferred. Comparing with the environmentally friendly ranking scores consumers filled in our survey, we learn the majority of them regarding themselves as green consumers. However, they still prefer plastic packaging than wrapped-edges-only. Hence, we conclude that even people trying to be environment protector from deep heart, their product quality still comes first.
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/packaging.jpeg")
+```
+
+###Price
+The distribution of price followed common sense that people never prefer high price when low price exists.
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/pricing.jpeg")
+```
+
+##Section 3: Tradeoff among different possible features:
+For each factor, three possible features are offered to consumers, and by checking the utilities for each of them, we draw the following table:
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/look_feel.png")
+```
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/design.png")
+```
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/packaging.png")
+```
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("/Users/jingcui/Desktop/part2/price.png")
+```
+
+As we learn from the aggregative part-worth utilities graph, we know that the packaging and pricing showed the most significant level of importance. Hence we choose packaging and price to be our example for explain the tradeoffs among different features.
+
+1.If we keep all the rest constant, decrease price medium to low compared with change plastic wrapped to carton box. 
+The utility changes from price medium to low will be 0.0628 
+The utility changes from plastic wrapped to carton box will be 0.3824 
+So, change from plastic wrapped to carton box. 
+
+2.If we keet all the rest constant, decrease price medium to low compared with change wrapped edges only to carton box. 
+The utility changes from price medium to low will be 0.0628 
+The utility changes from wrapped edge only to carton box will be 0.4461 
+So, change from wrapped edge only to carton box. 
+
+3.If we keet all the rest constant, decrease price high to low compared with change wrapped edges only to carton box. 
+The utility changes from price high to low will be 0.3686 
+The utility changes from wrapped edge only to carton box will be 0.4461 
+So, change from wrapped edges only to carton box. 
+
+##Section 4: Willingness to pay for each feature:
+As the tradeoff tables of each feature showed, we first calculated the price change impact per utility. 
+Mathematically, it can be formulated as:
+$$WTP/util=(p_h - p_l)/\delta util$$
+In our case, it is $5.826
+We then define the willingness to pay for each feature as the largest utility tradeoff utility within each feature times WTP/unit.
+For instance, WTP for look and feel will be:
+$$ \delta util(look) = util(sample B)-util(sampleC)=0.3282$$
+$$ WTP(look)=\delta util(look) *WTP/util =0.3282 *5.826 = 1.9121$$
+The same calculation is followed for packaging and desgin and with WTP of 2.4205 and 3.7053 separately.
+
+##Section 6: Final product prototype and price range 
+Since our survey only includes 12 people in total, the dataset itself has limitations. Without loss of generality, we decide to build the final product prototype while seeing our consumer as a homogeneous group; even we do consumer segments later to show that consumers are clustered into two groups. Another reason we do so is that the methodology of building the final prototype could be easily applied to build three final product prototypes for each group.
+
+###Prefered choice for all
+```{r}
+#preferred choice for all
+utility = as.data.frame(caTotalUtilities(y=tpref_c,x=tprof_c))
+utility
+avgpreferred = apply(utility, 2, mean)
+apply(as.data.frame(avgpreferred), 2, which.max)
+```
+```{r}
+preferred = apply(utility, 1, which.max)
+table(preferred) 
+```
+As the tables show above, the average preferred profile is profile 15, which has the following attributes: weathered round product with carton-box packaging for 7 dollars. The top 3 preferred profiles are 2, weathered square product packed by carton-box for 8 dollars; 8, a refined square product with plastic packaging for 7 dollars; and 11, natural squared carton-box product for 6 dollars.
+
+Therefore, based on the top 3 preferred products and top utilities of each feature in the aggregative part-worth utility table, we choose our general prototype, which suits for overall consumers' utility. The prototype has the following attributes: weathered look, square shape, as well as carton-box package.
+
+To find a proper price range, we first assume the lowest price of $6 in our profile would be sufficient for product costing. Then we compare the prototype profile with the top 3 preferred profiles, calculated the price changes when the preferred profile attributes change to the prototype ones by WTP to get a price range for each profile. Finally, we take the intersection of those three price ranges. As a result, the price range for our general prototype is [6,7.91]
+
+###Part-worth utilities by segments
+```{r}
+set.seed(12)
+segments = caSegmentation(tprefm_c,tprof_c,2)
+library(fpc)
+plotcluster(segments$util,segments$sclu)
+```
+From this part, we can see that our consumers are not a homogeneous group. They are split into two groups. It means we should consider focusing on different consumer group needs. If we choose one group's preference, we will automatically lose a big market in the other group.
+
+###Target prototype recommendation
+```{r}
+partseg = as.data.frame(cbind(partworthall,segments$sclu))
+colnames(partseg)[14] = c("segment")
+library(psych)
+segtable = psych::describeBy(partseg, partseg$segment, mat=TRUE)
+print(segtable[1:26,5:6])
+```
+If our dataset contains more data points, we could further analyze building prototypes for the majority group by applying the same methodology we used for a homogeneous group.
+
+If we choose segment one consumer as the target, by applying the methodology we did above, our final prototype will be refined square product packed by carton box with pricing range [6,7.91]. 
+
+If we choose segment two consumer as the target, our final prototype will be weathered square product with carton box package. And the price range will be [6,6.81]
+
+The significant difference between segments one and two is price sensitivity. The price utility range for segment one is 0.19, while segment two is around 0.61. Therefore, consumers from segment 1 are less price-sensitive than from segment two, meaning customers from segment one are less concerning price than from segment two.  
+
+
+#Marketing insights for VerTerra:
+The previous analysis shows that there IS a market for VerTerra, but how they should enter this new market? We propose the following marketing recommendations.
+
+##1.Market position
+The first question they need to re-consider is the market position of VerTerra: what is their competitive advantage? In terms of the competitive rivalry, VerTerra needs to consider 2 different markets – traditional kitchenware and disposable kitchenware – and highlight different aspects when advertising. For example, comparing to other disposable dinnerware, VerTerra is more environmental-friendly, more conversation worthy, more durable, and maybe reusable. As for traditional market, VerTerra should emphasize that they are cleaning-free and cheaper. Placing the product in the correct market can help VerTerra target their consumers and design marketing campaign.
+
+##2.Location impact 
+As indicated by our survey, there are surprisingly huge regional impact on preferences, especially with regard to the design/look of the product. For example, our respondents, all Chinese, have extremely strong preferences towards squared plates. This may due to cultural influence and dietary habits. If VerTerra launches the product in both North America and Asia, they need to take this into consideration when placing and promoting their products.
+
+##3.Product innovation
+Even an environmental-friendly disposable dinnerware sounds exciting, there is a root conflict within the idea itself: a disposable product is NOT environmental-friendly AT ALL! To resolve this potential controversy, we suggest VerTerra continue to research and develop the non-disposable environmental-friendly kitchenware. This can be a better selling point for the company. 
+
